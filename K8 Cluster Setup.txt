@@ -63,3 +63,45 @@ sudo kubeadm join 206.189.134.39:6443 --token dxxfoj.a2zzwbfrjejzir4h \
 
 #Deploy CNI-Computer Network Interface plugin (Master/Leader Node only)
 kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+
+#Deploy Load Balancer
+<will insert content here>
+
+#Install helm (Master/Leader)
+sudo snap install helm --classic
+helm repo add stable https://charts.helm.sh/stable
+helm repo update
+
+#Install NFS (workers and master)
+sudo apt install nfs-common -y
+
+#Add NFS storage to cluster
+helm  install --set nfs.server=172.30.1.4  --set nfs.path=/volume1/napp stable/nfs-client-provisioner --generate-name
+
+#Create Service Account
+kubectl create serviceaccount napp-admin -n kube-system
+kubectl create clusterrolebinding napp-admin --serviceaccount=kube-system:napp-admin --clusterrole=cluster-admin
+
+#Generate Auth Token (run the commmands indvidually in your user home dir)
+SECRET=$(kubectl get serviceaccount napp-admin -n kube-system -ojsonpath='{.secrets[].name}')
+TOKEN=$(kubectl get secret $SECRET -n kube-system -ojsonpath='{.data.token}' | base64 -d)
+kubectl get secrets $SECRET -n kube-system -o jsonpath='{.data.ca\.crt}' | base64 -d > ./ca.crt
+
+#Get the K8 Cluster url
+CONTEXT=$(kubectl config view -o jsonpath='{.current-context}')
+CLUSTER=$(kubectl config view -o jsonpath='{.contexts[?(@.name == "'"$CONTEXT"'")].context.cluster}')
+URL=$(kubectl config view -o jsonpath='{.clusters[?(@.name == "'"$CLUSTER"'")].cluster.server}')
+
+#generate the kubeconfig file, the filename can be whatever you want it to be
+TO_BE_CREATED_KUBECONFIG_FILE="napp-config"
+kubectl config --kubeconfig=$TO_BE_CREATED_KUBECONFIG_FILE set-cluster $CLUSTER --server=$URL --certificate-authority=./ca.crt --embed-certs=true
+kubectl config --kubeconfig=$TO_BE_CREATED_KUBECONFIG_FILE set-credentials napp-admin --token=$TOKEN 
+kubectl config --kubeconfig=$TO_BE_CREATED_KUBECONFIG_FILE set-context $CONTEXT --cluster=$CLUSTER --user=napp-admin
+kubectl config --kubeconfig=$TO_BE_CREATED_KUBECONFIG_FILE use-context $CONTEXT
+
+#validate the file contents
+cat napp-config
+
+#download file to desktop
+
+
