@@ -1,0 +1,64 @@
+Deploy Tanzu CE (TCE)
+To start we will need a Client Ubuntu VM/Workstation (2vcpu/8GB RAM/40GB+ Disk)
+
+#Change Linux Kernel Cgroups from v2 to v1, the current verison of TCE has a problem with v2.
+#https://sleeplessbeastie.eu/2021/09/10/how-to-enable-control-group-v2/
+sudo sed -i -e 's/^GRUB_CMDLINE_LINUX=""/GRUB_CMDLINE_LINUX="systemd.unified_cgroup_hierarchy=0"/' /etc/default/grub
+sudo update-grub
+#reboot os
+
+#rsa key
+#check if there is already an RSA key pair, if there is one there you can use it (or generate a new one)
+cat ~/.ssh/id_rsa
+
+#generate new rsa key
+ssh-keygen -t rsa -b 4096 -C "<email@example.com>"
+
+#export the keypair
+ssh-add ~/.ssh/id_rsa
+
+#view the key, you can copy to a temp location, we'll need this down the road
+cat ~/.ssh/id_rsa.pib
+
+
+#deploy OVA for VMs to be deployed, insturctions at link below
+#https://tanzucommunityedition.io/docs/latest/vsphere-install-standalone/
+
+#Install kubectl 
+#https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/
+sudo apt install -y apt-transport-https ca-certificates curl
+sudo curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
+echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+sudo apt update && sudo apt install -y kubectl
+
+#install docker
+#https://docs.docker.com/engine/install/ubuntu/
+sudo apt install gnupg lsb-release
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt update
+sudo apt install docker-ce docker-ce-cli containerd.io
+
+#Allow docker to run as none root user
+#https://docs.docker.com/engine/install/linux-postinstall/#manage-docker-as-a-non-root-user
+sudo groupadd docker
+sudo usermod -aG docker $USER
+
+#Reboot machine to active changes
+#Test none root user access 
+docker run hello-world
+
+#install Homebrew package manager; https://brew.sh/
+#take note of any post install steps you might need to complete
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+#install Tanzu CE with Homebrew
+brew install vmware-tanzu/tanzu/tanzu-community-edition
+/home/linuxbrew/.linuxbrew/Cellar/tanzu-community-edition/v0.9.1/libexec/configure-tce.sh
+
+#Launch the following command to launch the UI installer
+#it will download a few components before opening the browser
+tanzu management-cluster create --ui
+

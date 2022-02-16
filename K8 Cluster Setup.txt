@@ -1,0 +1,65 @@
+K8 Cluster Setup
+##For all VMS##
+
+# Get sudo working
+sudo -l 
+
+#disable swap
+sudo swapoff -a 
+sudo vim /etc/fstab
+#comment out the line with mention of 'swap'
+
+
+# update packages and their version
+sudo apt update && sudo apt-get upgrade -y
+
+# install curl and apt-transport-https
+sudo apt update && sudo apt install -y apt-transport-https curl
+
+# add key to verify releases
+curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+
+# add kubernetes apt repo
+cat <<EOF | sudo tee /etc/apt/sources.list.d/kubernetes.list
+deb https://apt.kubernetes.io/ kubernetes-xenial main
+EOF
+
+#validate file
+cat /etc/apt/sources.list.d/kubernetes.list
+
+# install kubelet, kubeadm and kubectl
+sudo apt update
+sudo apt install -y kubelet=1.19.6-00 kubeadm=1.19.6-00 kubectl=1.19.6-00
+
+# install docker
+sudo apt install -y docker.io
+
+# apt-mark hold is used so that these packages will not be updated/removed automatically
+sudo apt-mark hold kubelet kubeadm kubectl
+After the above commands are successfully run on all the worker nodes. Below steps can be followed to initialize the Kubernetes cluster.
+
+
+#Updating Kubernetes Configuration (Master/Leader Node only)
+sudo vim /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
+#Add the following line after the last “Environment Variable”:
+Environment="cgroup-driver=systemd/cgroup-driver=cgroupfs"
+
+
+##Initialize K8 (Master/Leader Node only)
+export MASTER_IP=<IP-of-Node>
+sudo kubeadm init --apiserver-advertise-address=${MASTER_IP} --pod-network-cidr=10.244.0.0/16
+
+#Your Kubernetes control-plane has initialized successfully!
+#To start using your cluster, you need to run the following as a regular user:
+
+  mkdir -p $HOME/.kube
+  sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+  sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+## Join worker nodes to master, below is an example. 
+
+sudo kubeadm join 206.189.134.39:6443 --token dxxfoj.a2zzwbfrjejzir4h \
+    --discovery-token-ca-cert-hash sha256:110e853989c2401b1e54aef6e8ff0393e05f18d531a75ed107cf6c05ca4170eb
+
+#Deploy CNI-Computer Network Interface plugin (Master/Leader Node only)
+kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml

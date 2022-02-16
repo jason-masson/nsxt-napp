@@ -1,0 +1,73 @@
+Harbor Image Registry
+
+#Fully Patch VM
+sudo apt update && apt upgrade -y
+
+#Install Packages below
+sudo apt install ca-certificates curl gnupg lsb-release
+
+##Install Docker
+#get gpg key
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+
+#add docker repo
+echo \
+ "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu \
+ $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+#install docker & tools
+sudo apt update
+sudo apt install docker-ce docker-ce-cli containerd.io
+
+#check if docker is running
+ systemctl status docker
+
+#Create Harbor data directory
+sudo mkdir -p /mnt/data
+
+#switch to new dir
+cd /mnt/data
+
+
+#download docker compose into 
+sudo curl -L "https://github.com/docker/compose/releases/download/1.27.4/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+
+#update permissions
+sudo chmod +x /usr/local/bin/docker-compose
+
+#check versions
+docker-compose --version
+#eg output| docker-compose version 1.27.4, build 40524192
+
+
+##Generate Public Cert with lets encrypt
+sudo apt install letsencrypt
+
+# Check to ensure it is running
+systemctl status certbot.timer
+
+## Generate cert | VMs needs to be publicly avalible via port 80
+# Change the value after -d to match the hostname of your Harbor appliance.
+sudo certbot certonly --standalone -d k8-5.casa.bz
+
+
+##Setup and configure Harbor
+#Download the offline Harbor installer package located here:  https://github.com/goharbor/harbor/releases
+sudo wget -v <url of package>
+
+#extract files
+sudo tar xzvf <downloaded offline installer>
+
+#switch to new harbor folder
+cd harbor
+
+#backup default config
+sudo cp harbor.yml harbor.yml.bk
+
+#edit file
+vim harbor.yml
+#### The main options that I changed are
+hostname: reg.mydomain.com     <must match the letsencrypt domain>
+  certificate: /your/certificate/path    <fullchain.pem from the letsencrypt output>
+  private_key: /your/private/key/path    <privkey.pem from the letsencrypt output>
+data_volume: /data   << make sure whatever this is, its created>>
