@@ -22,7 +22,7 @@ sudo apt install docker-ce docker-ce-cli containerd.io
 #check if docker is running
  systemctl status docker
 
-#Create Harbor data directory
+#Create a data directory, this can be whereever you want. 
 sudo mkdir -p /mnt/data
 
 #switch to new dir
@@ -41,6 +41,7 @@ docker-compose --version
 
 
 ##Generate Public Cert with lets encrypt
+#Not required if you bought a standard ssl cert
 sudo apt install letsencrypt
 
 # Check to ensure it is running
@@ -48,7 +49,7 @@ systemctl status certbot.timer
 
 ## Generate cert | VMs needs to be publicly avalible via port 80
 # Change the value after -d to match the hostname of your Harbor appliance.
-sudo certbot certonly --standalone -d k8-5.casa.bz
+sudo certbot certonly --standalone -d <fqdn/cname of vm>
 
 
 ##Setup and configure Harbor
@@ -70,4 +71,24 @@ vim harbor.yml
 hostname: reg.mydomain.com     <must match the letsencrypt domain>
   certificate: /your/certificate/path    <fullchain.pem from the letsencrypt output>
   private_key: /your/private/key/path    <privkey.pem from the letsencrypt output>
-data_volume: /data   << make sure whatever this is, its created>>
+  data_volume: /data   < make sure whatever this is, its created>
+
+
+#run the installer 
+sudo ./install.sh --with-chartmuseum  <chartmuseum is hard requirement for napp>
+
+#After the installer has completed you can log into the giu with UN:admin and PW: set in the config file
+#Create a new project and set it as public. 
+#From another Linux Machine, in my case the K8 Leader
+#download and extract the NAPP bundle from vmware and upload to the vm
+tar zxvf VMware-NSX-Application-Platform-3.2.0.0.0.19067744.tgz
+
+#edit the first 3 lines of the uploader file with the info for the harbor registry
+sudo vim upload_artifacts_to_private_harbor.sh
+
+
+#run the uploader script
+sudo ./upload_artifacts_to_private_harbor.sh
+
+#after the script has run, validate the data is in hardbor
+#for version 3.2.0 you shoud see 80 Repositories & 18 Helm Chart
