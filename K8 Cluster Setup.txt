@@ -103,5 +103,3 @@ kubectl config --kubeconfig=$TO_BE_CREATED_KUBECONFIG_FILE use-context $CONTEXT
 cat napp-config
 
 #download file to desktop
-
-

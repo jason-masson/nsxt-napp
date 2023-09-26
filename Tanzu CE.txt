@@ -61,4 +61,3 @@ brew install vmware-tanzu/tanzu/tanzu-community-edition
 #Launch the following command to launch the UI installer
 #it will download a few components before opening the browser
 tanzu management-cluster create --ui
-
